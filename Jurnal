@@ -1,0 +1,665 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Trading Journal - Calendar & Stats</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tabler-icons@latest/dist/tabler-icons.min.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #0a0a0f; color: #ededf0; font-family: 'Segoe UI', sans-serif; font-size: 13px; }
+  .app { display: flex; min-height: 100vh; }
+  
+  .sidebar { 
+    width: 250px; 
+    background: #0f0f14; 
+    border-right: 1px solid rgba(255,255,255,0.06); 
+    padding: 20px 12px; 
+    display: flex; 
+    flex-direction: column; 
+    gap: 2px; 
+  }
+  .logo { padding: 0 12px; margin-bottom: 24px; }
+  .logo-text { font-size: 22px; font-weight: 700; color: #fff; }
+  .logo-sub { font-size: 8px; color: #6b6b7a; letter-spacing: 1.5px; margin-top: 2px; }
+  .nav-item { 
+    display: flex; 
+    align-items: center; 
+    gap: 12px; 
+    padding: 10px 14px; 
+    background: transparent; 
+    border: none; 
+    color: #6b6b7a; 
+    font-size: 13px; 
+    border-radius: 8px; 
+    cursor: pointer; 
+    width: 100%; 
+    text-align: left; 
+    transition: all 0.2s; 
+  }
+  .nav-item:hover { background: #1a1a22; color: #fff; }
+  .nav-item.active { background: rgba(34,197,94,0.12); color: #22c55e; }
+  
+  .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+  
+  .topbar { 
+    background: #0f0f14; 
+    border-bottom: 1px solid rgba(255,255,255,0.06); 
+    padding: 12px 24px; 
+    display: flex; 
+    justify-content: space-between; 
+    align-items: center; 
+    gap: 12px; 
+  }
+  .journal-title { 
+    font-size: 20px; 
+    font-weight: 700; 
+    color: #22c55e; 
+    letter-spacing: 2px;
+  }
+  .topbar-right { display: flex; align-items: center; gap: 12px; }
+  .balance-chip { 
+    background: #1a1a22; 
+    border: 1px solid rgba(255,255,255,0.08); 
+    border-radius: 8px; 
+    padding: 6px 14px; 
+    display: flex; 
+    align-items: center; 
+    gap: 8px; 
+  }
+  .balance-label { font-size: 11px; color: #6b6b7a; }
+  .balance-amount { font-size: 14px; font-weight: 700; color: #22c55e; }
+  .btn { 
+    display: inline-flex; 
+    align-items: center; 
+    gap: 6px; 
+    padding: 7px 14px; 
+    background: #1a1a22; 
+    border: 1px solid rgba(255,255,255,0.08); 
+    border-radius: 8px; 
+    color: #ededf0; 
+    font-size: 12px; 
+    cursor: pointer; 
+  }
+  .btn-primary { background: #3b82f6; border-color: #3b82f6; color: #fff; font-weight: 600; }
+  .btn-primary:hover { background: #60a5fa; }
+  .btn-danger { background: rgba(239,68,68,0.2); border-color: #ef4444; color: #ef4444; }
+  .btn-danger:hover { background: #ef4444; color: #fff; }
+  .content { padding: 24px; overflow-y: auto; flex: 1; }
+  
+  .stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 20px; }
+  .stat-card { background: #0f0f14; border: 1px solid rgba(255,255,255,0.06); border-radius: 12px; padding: 14px 18px; position: relative; }
+  .stat-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; }
+  .stat-card:nth-child(1)::before { background: #22c55e; }
+  .stat-card:nth-child(2)::before { background: #22c55e; }
+  .stat-card:nth-child(3)::before { background: #f59e0b; }
+  .stat-label { font-size: 10px; color: #6b6b7a; text-transform: uppercase; margin-bottom: 6px; }
+  .stat-value { font-size: 24px; font-weight: 700; }
+  .stat-sub { font-size: 11px; color: #6b6b7a; margin-top: 4px; }
+  .charts-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 20px; }
+  .chart-card { background: #0f0f14; border: 1px solid rgba(255,255,255,0.06); border-radius: 12px; padding: 16px; }
+  .chart-title { font-size: 11px; color: #6b6b7a; text-transform: uppercase; margin-bottom: 12px; display: flex; align-items: center; gap: 6px; }
+  .donut-container { position: relative; display: flex; justify-content: center; align-items: center; min-height: 180px; }
+  .donut-wrapper { position: relative; width: 150px; height: 150px; }
+  .donut-center-text { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; }
+  .donut-percent { font-size: 28px; font-weight: 700; color: #22c55e; }
+  .calendar-container { background: #0f0f14; border: 1px solid rgba(255,255,255,0.06); border-radius: 16px; padding: 20px; margin-bottom: 20px; }
+  .calendar-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 12px; }
+  .month-nav { display: flex; align-items: center; gap: 12px; background: #1a1a22; padding: 6px 16px; border-radius: 30px; }
+  .month-nav button { background: transparent; border: none; color: #6b6b7a; cursor: pointer; font-size: 18px; padding: 4px 8px; border-radius: 20px; }
+  .month-nav button:hover { color: #22c55e; background: rgba(34,197,94,0.1); }
+  .month-nav span { font-size: 18px; font-weight: 600; min-width: 140px; text-align: center; }
+  .calendar-weekdays { display: grid; grid-template-columns: repeat(7, 1fr); text-align: center; margin-bottom: 12px; }
+  .weekday { padding: 10px 4px; font-size: 12px; font-weight: 600; color: #6b6b7a; text-transform: uppercase; }
+  .calendar-days { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
+  .calendar-day { background: #13131a; border-radius: 12px; padding: 10px 6px; text-align: center; min-height: 80px; transition: all 0.2s; border: 1px solid transparent; }
+  .calendar-day:hover { background: #1e1e28; border-color: #22c55e; transform: translateY(-2px); }
+  .calendar-day.empty { background: transparent; cursor: default; opacity: 0.3; }
+  .calendar-day.empty:hover { transform: none; border-color: transparent; }
+  .calendar-day.today { border-color: #3b82f6; background: rgba(59,130,246,0.1); }
+  .day-number { font-size: 14px; font-weight: 600; margin-bottom: 6px; color: #8b8b9a; }
+  .day-pnl { font-size: 11px; font-weight: 700; padding: 3px 6px; border-radius: 6px; display: inline-block; }
+  .day-pnl.positive { color: #22c55e; background: rgba(34,197,94,0.1); }
+  .day-pnl.negative { color: #ef4444; background: rgba(239,68,68,0.1); }
+  .day-trade-count { font-size: 9px; color: #5a5a6a; margin-top: 4px; }
+  .form-card { background: #0f0f14; border: 1px solid rgba(255,255,255,0.06); border-radius: 12px; margin-bottom: 20px; overflow: hidden; display: none; }
+  .form-header { padding: 14px 20px; background: #13131a; border-bottom: 1px solid rgba(255,255,255,0.06); display: flex; justify-content: space-between; }
+  .form-header h3 { font-size: 14px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+  .form-body { padding: 20px; }
+  .form-grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 16px; }
+  .field-group { display: flex; flex-direction: column; gap: 6px; }
+  .field-group label { font-size: 11px; font-weight: 600; color: #8b8b9a; text-transform: uppercase; }
+  .field-group input, .field-group select { background: #1a1a22; border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; padding: 9px 12px; color: #ededf0; font-size: 13px; }
+  .field-group input:focus, .field-group select:focus { outline: none; border-color: #3b82f6; }
+  .radio-group { display: flex; gap: 16px; background: #1a1a22; padding: 8px 12px; border-radius: 8px; }
+  .radio-option { display: flex; align-items: center; gap: 8px; cursor: pointer; }
+  .radio-option.buy span { color: #4ade80; font-weight: 600; }
+  .radio-option.sell span { color: #ef4444; font-weight: 600; }
+  .level-section { background: #13131a; border-radius: 10px; padding: 14px; margin-bottom: 18px; }
+  .level-title { font-size: 11px; font-weight: 600; color: #8b8b9a; margin-bottom: 12px; }
+  .level-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+  .form-actions { display: flex; gap: 12px; justify-content: flex-end; margin-top: 20px; padding-top: 16px; border-top: 1px solid rgba(255,255,255,0.06); }
+  .table-wrapper { background: #0f0f14; border: 1px solid rgba(255,255,255,0.06); border-radius: 12px; overflow: hidden; margin-top: 20px; }
+  .table-header { padding: 12px 16px; background: #13131a; border-bottom: 1px solid rgba(255,255,255,0.06); display: flex; justify-content: flex-end; }
+  .table-responsive { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  th { text-align: left; padding: 10px 12px; color: #6b6b7a; font-size: 11px; text-transform: uppercase; border-bottom: 1px solid rgba(255,255,255,0.06); }
+  td { padding: 10px 12px; border-bottom: 1px solid rgba(255,255,255,0.04); }
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: 600; }
+  .badge-buy { background: rgba(34,197,94,0.2); color: #4ade80; }
+  .badge-sell { background: rgba(239,68,68,0.2); color: #ef4444; }
+  .win { color: #22c55e; font-weight: 600; }
+  .loss { color: #ef4444; font-weight: 600; }
+  .pos { color: #22c55e; }
+  .neg { color: #ef4444; }
+  .del-btn { background: none; border: none; color: #5a5a6a; cursor: pointer; padding: 4px; border-radius: 4px; }
+  .del-btn:hover { color: #ef4444; }
+  .empty-state { text-align: center; padding: 48px; color: #5a5a6a; }
+  .toast { position: fixed; bottom: 24px; right: 24px; background: #1a1a22; border: 1px solid rgba(255,255,255,0.1); padding: 10px 18px; border-radius: 10px; transform: translateY(80px); opacity: 0; transition: all 0.3s; z-index: 1000; }
+  .toast.show { transform: translateY(0); opacity: 1; }
+  .toast.error { border-left: 3px solid #ef4444; }
+  .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 100; align-items: center; justify-content: center; }
+  .modal-overlay.open { display: flex; }
+  .modal { background: #0f0f14; border-radius: 16px; padding: 24px; width: 340px; }
+  .modal input { background: #1a1a22; border: 1px solid #333; border-radius: 8px; padding: 12px; color: #fff; width: 100%; }
+  @media (max-width: 768px) { .sidebar { display: none; } .stats-grid { grid-template-columns: 1fr; } .charts-row { grid-template-columns: 1fr; } .calendar-day { min-height: 65px; padding: 6px 4px; } .topbar { flex-direction: column; align-items: flex-start; } }
+</style>
+</head>
+<body>
+
+<div id="main-app" class="app">
+  <aside class="sidebar">
+    <div class="logo">
+      <div class="logo-text">TREDING</div>
+      <div class="logo-sub">JOURNAL OF TRADING AND MARKET STUDIES</div>
+    </div>
+    <button class="nav-item active" onclick="setPage('calendar')"><i class="ti ti-calendar-month"></i> Kalender</button>
+    <button class="nav-item" onclick="setPage('stats')"><i class="ti ti-chart-bar"></i> Statistik</button>
+    <button class="nav-item" onclick="openBalModal()"><i class="ti ti-wallet"></i> Atur Balance</button>
+    <button class="nav-item btn-danger" onclick="clearAll()"><i class="ti ti-trash"></i> Hapus Semua</button>
+  </aside>
+
+  <div class="main">
+    <div class="topbar">
+      <div class="journal-title">JURNAL TREDING</div>
+      <div class="topbar-right">
+        <div class="balance-chip">
+          <span class="balance-label">Balance</span>
+          <span class="balance-amount" id="topbar-balance">$0</span>
+        </div>
+        <button class="btn btn-primary" onclick="toggleForm()"><i class="ti ti-plus"></i> Tambah Trade</button>
+      </div>
+    </div>
+
+    <div class="content">
+      <div id="page-calendar">
+        <div class="stats-grid">
+          <div class="stat-card"><div class="stat-label">Total Trade</div><div class="stat-value" id="cal-total">0</div><div class="stat-sub" id="cal-month">Bulan ini</div></div>
+          <div class="stat-card"><div class="stat-label">Win Rate</div><div class="stat-value" id="cal-wr">0%</div><div class="stat-sub" id="cal-wl">0W / 0L</div></div>
+          <div class="stat-card"><div class="stat-label">Total P&L</div><div class="stat-value" id="cal-pnl">$0</div><div class="stat-sub" id="cal-pnl-sub">Bulan ini</div></div>
+        </div>
+
+        <div class="calendar-container">
+          <div class="calendar-header">
+            <div class="month-nav">
+              <button onclick="changeMonth(-1)"><i class="ti ti-chevron-left"></i></button>
+              <span id="current-month">Mei 2026</span>
+              <button onclick="changeMonth(1)"><i class="ti ti-chevron-right"></i></button>
+            </div>
+            <button class="btn" onclick="goToToday()"><i class="ti ti-calendar-today"></i> Hari Ini</button>
+          </div>
+          <div class="calendar-weekdays" id="weekdays"></div>
+          <div class="calendar-days" id="calendar-days"></div>
+        </div>
+      </div>
+
+      <div id="page-stats" style="display: none;">
+        <div class="stats-grid">
+          <div class="stat-card"><div class="stat-label">Win Rate</div><div class="stat-value" id="s-wr">0%</div><div class="stat-sub" id="s-wl-count">0 win / 0 loss / 0 BE</div></div>
+          <div class="stat-card"><div class="stat-label">Total P&L</div><div class="stat-value" id="s-pnl">$0</div><div class="stat-sub" id="s-pnl-sub">Dari 0 trade</div></div>
+          <div class="stat-card"><div class="stat-label">Rata-Rata RR</div><div class="stat-value" id="s-rr">—</div><div class="stat-sub">Risk to reward rata-rata</div></div>
+        </div>
+
+        <div class="charts-row">
+          <div class="chart-card">
+            <div class="chart-title"><i class="ti ti-trending-up"></i> KURVA EKUITAS</div>
+            <div style="height:160px"><canvas id="equity-chart"></canvas></div>
+          </div>
+          <div class="chart-card">
+            <div class="chart-title"><i class="ti ti-chart-donut"></i> WIN / LOSS</div>
+            <div class="donut-container">
+              <div class="donut-wrapper">
+                <canvas id="wl-chart"></canvas>
+                <div class="donut-center-text">
+                  <div class="donut-percent" id="donut-percent">0%</div>
+                  <div class="donut-label" style="font-size:10px; color:#6b6b7a">Win Rate</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="table-wrapper">
+          <div class="table-header">
+            <button class="btn" onclick="exportCSV()">Export CSV</button>
+          </div>
+          <div class="table-responsive">
+            <table id="trade-table">
+              <thead>
+                <tr><th>Tanggal</th><th>PAIR</th><th>LOT</th><th>SETUP</th><th>ENTRY</th><th>TP</th><th>SL</th><th>RR</th><th>HASIL</th><th>STATUS</th><th>CATATAN</th><th></th></tr>
+              </thead>
+              <tbody id="tbody"></tbody>
+            </table>
+            <div id="empty-state" class="empty-state">Belum ada trade. Klik "+ Tambah Trade"</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="form-card" id="form-card">
+        <div class="form-header"><h3><i class="ti ti-plus"></i> Input Trade Baru</h3><button class="btn" onclick="toggleForm()"><i class="ti ti-x"></i> Tutup</button></div>
+        <div class="form-body">
+          <div class="form-grid-3">
+            <div class="field-group"><label>TANGGAL</label><input type="date" id="f-date" value=""></div>
+            <div class="field-group">
+              <label>PAIR</label>
+              <select id="f-pair">
+                <option value="XAUUSD">XAUUSD</option>
+                <option value="XAGUSD">XAGUSD</option>
+                <option value="BTCUSD">BTCUSD</option>
+                <option value="NAS100">NAS100</option>
+                <option value="EURUSD">EURUSD</option>
+                <option value="GBPUSD">GBPUSD</option>
+              </select>
+            </div>
+            <div class="field-group"><label>LOT</label><input type="number" id="f-lot" placeholder="0.01" step="0.01" value="0.01"></div>
+          </div>
+          <div class="form-grid-3">
+            <div class="field-group"><label>SETUP</label><div class="radio-group"><label class="radio-option buy"><input type="radio" name="orderType" value="BUY" checked> <span>BUY</span></label><label class="radio-option sell"><input type="radio" name="orderType" value="SELL"> <span>SELL</span></label></div></div>
+            <div class="field-group"><label>HASIL ($)</label><input type="number" id="f-hasil" placeholder="+90.000 atau -30.000" step="1000"></div>
+            <div class="field-group"><label>STATUS</label><select id="f-wl"><option value="W">WIN</option><option value="L">LOSS</option><option value="BE">BE</option></select></div>
+          </div>
+          <div class="level-section">
+            <div class="level-title">LEVEL HARGA</div>
+            <div class="level-grid">
+              <div class="field-group"><label>ENTRY</label><input type="number" id="f-entry" placeholder="Entry" step="0.01" oninput="calculateRR()"></div>
+              <div class="field-group"><label>TP</label><input type="number" id="f-tp" placeholder="Take profit" step="0.01" oninput="calculateRR()"></div>
+              <div class="field-group"><label>SL</label><input type="number" id="f-sl" placeholder="Stop loss" step="0.01" oninput="calculateRR()"></div>
+            </div>
+          </div>
+          <div class="form-grid-3">
+            <div class="field-group"><label>RR</label><input type="text" id="f-rr" placeholder="1:2" readonly></div>
+            <div class="field-group"><label>RISK %</label><input type="text" id="f-risk" placeholder="1%" readonly></div>
+            <div class="field-group"><label>CATATAN</label><input type="text" id="f-note" placeholder="Catatan..."></div>
+          </div>
+          <div class="form-actions"><button class="btn" onclick="toggleForm()">Batal</button><button class="btn btn-primary" onclick="addTrade()">Simpan Trade</button></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL ATUR BALANCE - TULISAN (USD) DAN CONTOH SUDAH DIHAPUS -->
+<div class="modal-overlay" id="bal-modal">
+  <div class="modal">
+    <h3>Atur Balance Awal</h3>
+    <input type="text" id="bal-input" placeholder="" value="10000">
+    <div style="display:flex;gap:8px;margin-top:20px">
+      <button class="btn" onclick="closeBalModal()">Batal</button>
+      <button class="btn btn-primary" onclick="saveBalance()">Simpan</button>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast"><i class="ti ti-info-circle"></i><span id="toast-msg"></span></div>
+
+<script>
+// ========== DATA STORAGE ==========
+let balance = 10000;
+let trades = [];
+let nextId = 1;
+let currentYear = 2026, currentMonth = 4;
+let equityChart = null, wlChart = null;
+
+const monthNames = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+const dayNames = ['SÉN', 'SÉL', 'RAB', 'JÚN', 'SÁB', 'MÍN'];
+
+function getToday() { return new Date().toISOString().slice(0,10); }
+
+function formatUSD(angka) {
+  if (angka === undefined || angka === null) return '$0';
+  let num = parseFloat(angka);
+  if (isNaN(num)) return '$0';
+  let parts = num.toFixed(2).split('.');
+  let integerPart = parseInt(parts[0]).toLocaleString('id-ID');
+  let decimalPart = parts[1];
+  if (num < 0) {
+    return '-$' + integerPart + ',' + decimalPart;
+  }
+  return '$' + integerPart + ',' + decimalPart;
+}
+
+function formatPnl(angka) {
+  if (angka === undefined || angka === null) return '0';
+  let num = parseFloat(angka);
+  if (isNaN(num)) return '0';
+  let parts = Math.abs(num).toFixed(2).split('.');
+  let integerPart = parseInt(parts[0]).toLocaleString('id-ID');
+  let decimalPart = parts[1];
+  if (num < 0) {
+    return '-' + integerPart + ',' + decimalPart;
+  }
+  return '+' + integerPart + ',' + decimalPart;
+}
+
+function parseIndonesianNumber(str) {
+  if (!str) return 0;
+  let cleaned = str.replace(/\./g, '');
+  cleaned = cleaned.replace(/,/g, '.');
+  return parseFloat(cleaned) || 0;
+}
+
+function loadData() {
+  const saved = localStorage.getItem('trading_app_data');
+  if(saved) {
+    const d = JSON.parse(saved);
+    balance = d.balance || 10000;
+    trades = d.trades || [];
+    nextId = d.nextId || 1;
+  } else {
+    balance = 10000;
+    trades = [];
+    nextId = 1;
+  }
+  trades = trades.map(t => ({ ...t, date: t.date || getToday(), lot: t.lot || 0.01 }));
+}
+
+function saveData() {
+  localStorage.setItem('trading_app_data', JSON.stringify({ balance, trades, nextId }));
+}
+
+function toast(msg, isError = false) {
+  const t = document.getElementById('toast');
+  document.getElementById('toast-msg').innerText = msg;
+  t.classList.add('show');
+  if(isError) t.classList.add('error');
+  else t.classList.remove('error');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+function calculateRR() {
+  const entry = parseFloat(document.getElementById('f-entry').value);
+  const tp = parseFloat(document.getElementById('f-tp').value);
+  const sl = parseFloat(document.getElementById('f-sl').value);
+  const lot = parseFloat(document.getElementById('f-lot').value) || 0.01;
+  const orderType = document.querySelector('input[name="orderType"]:checked').value;
+  
+  if (!isNaN(entry) && !isNaN(tp) && !isNaN(sl) && entry !== 0 && sl !== 0) {
+    let riskAmount, rewardAmount;
+    if (orderType === 'BUY') {
+      riskAmount = Math.abs(entry - sl);
+      rewardAmount = Math.abs(tp - entry);
+    } else {
+      riskAmount = Math.abs(sl - entry);
+      rewardAmount = Math.abs(entry - tp);
+    }
+    if (riskAmount > 0) {
+      const rrRatio = (rewardAmount / riskAmount).toFixed(2);
+      document.getElementById('f-rr').value = `1:${rrRatio}`;
+      const riskPercent = ((riskAmount / entry) * 100 * lot).toFixed(2);
+      document.getElementById('f-risk').value = `${riskPercent}%`;
+    } else {
+      document.getElementById('f-rr').value = '';
+      document.getElementById('f-risk').value = '';
+    }
+  } else {
+    document.getElementById('f-rr').value = '';
+    document.getElementById('f-risk').value = '';
+  }
+}
+
+document.querySelectorAll('input[name="orderType"]').forEach(r => r.addEventListener('change', () => calculateRR()));
+document.getElementById('f-lot').addEventListener('input', () => calculateRR());
+
+function validateLevels(entry, tp, sl, orderType) {
+  if(orderType === 'BUY') {
+    if(tp <= entry) return { valid: false, message: 'TIDAK VALID' };
+    if(sl >= entry) return { valid: false, message: 'TIDAK VALID' };
+    if(tp <= sl) return { valid: false, message: 'TIDAK VALID' };
+  } else {
+    if(tp >= entry) return { valid: false, message: 'TIDAK VALID' };
+    if(sl <= entry) return { valid: false, message: 'TIDAK VALID' };
+    if(tp >= sl) return { valid: false, message: 'TIDAK VALID' };
+  }
+  return { valid: true, message: '' };
+}
+
+function addTrade() {
+  const orderType = document.querySelector('input[name="orderType"]:checked').value;
+  const pair = document.getElementById('f-pair').value;
+  const lot = parseFloat(document.getElementById('f-lot').value) || 0.01;
+  const entryRaw = document.getElementById('f-entry').value;
+  const tpRaw = document.getElementById('f-tp').value;
+  const slRaw = document.getElementById('f-sl').value;
+  const rr = document.getElementById('f-rr').value || '';
+  const hasil = parseFloat(document.getElementById('f-hasil').value) || 0;
+  const wl = document.getElementById('f-wl').value;
+  const note = document.getElementById('f-note').value;
+  let date = document.getElementById('f-date').value;
+  if(!date) date = getToday();
+  
+  if(entryRaw !== '' && tpRaw !== '' && slRaw !== '') {
+    const entry = parseFloat(entryRaw);
+    const tp = parseFloat(tpRaw);
+    const sl = parseFloat(slRaw);
+    const validation = validateLevels(entry, tp, sl, orderType);
+    if(!validation.valid) {
+      toast(validation.message, true);
+      return;
+    }
+  }
+  
+  trades.push({ id: nextId++, pair, lot, orderType, entry: entryRaw || '', tp: tpRaw || '', sl: slRaw || '', rr, hasil, wl, note, date });
+  saveData();
+  document.getElementById('f-entry').value = ''; document.getElementById('f-tp').value = ''; document.getElementById('f-sl').value = '';
+  document.getElementById('f-rr').value = ''; document.getElementById('f-risk').value = '';
+  document.getElementById('f-hasil').value = ''; document.getElementById('f-note').value = '';
+  document.getElementById('f-lot').value = '0.01';
+  renderAll();
+  toast('Trade tersimpan!');
+  toggleForm();
+}
+
+function deleteTrade(id) { if(confirm('Hapus trade?')){ trades=trades.filter(t=>t.id!==id); saveData(); renderAll(); toast('Trade terhapus'); } }
+function clearAll() { if(confirm('Hapus SEMUA trade?')){ trades=[]; saveData(); renderAll(); toast('Semua data dihapus'); } }
+function toggleForm() { const f=document.getElementById('form-card'); f.style.display = f.style.display==='none'?'block':'none'; if(f.style.display==='block'){ document.getElementById('f-date').value=getToday(); document.getElementById('f-lot').value='0.01'; } }
+function openBalModal() { 
+  document.getElementById('bal-input').value = formatUSD(balance).replace('$', '').replace(',', ','); 
+  document.getElementById('bal-modal').classList.add('open'); 
+}
+function closeBalModal() { document.getElementById('bal-modal').classList.remove('open'); }
+function saveBalance() { 
+  let val = document.getElementById('bal-input').value;
+  balance = parseIndonesianNumber(val);
+  saveData(); 
+  renderAll(); 
+  closeBalModal(); 
+  toast('Balance diperbarui'); 
+}
+function setPage(page) {
+  document.getElementById('page-calendar').style.display = page==='calendar'?'block':'none';
+  document.getElementById('page-stats').style.display = page==='stats'?'block':'none';
+  if(page==='stats') renderStatsPage();
+  else renderCalendarPage();
+}
+function exportCSV() {
+  if(!trades.length){toast('Tidak ada data', true);return;}
+  const headers=['Tanggal','Pair','Lot','Setup','Entry','TP','SL','RR','Hasil','Status','Catatan'];
+  const rows=trades.map(t=>[t.date,t.pair,t.lot,t.orderType,t.entry,t.tp,t.sl,t.rr,t.hasil,t.wl,t.note]);
+  const csv=[headers,...rows].map(r=>r.join(',')).join('\n');
+  const a=document.createElement('a'); a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv);
+  a.download=`jurnal_trading_${getToday()}.csv`; a.click(); toast('CSV diunduh');
+}
+
+function getDailyPnL(year, month) {
+  const result = {};
+  trades.forEach(t => {
+    if(!t.date) return;
+    const [y,m,d] = t.date.split('-');
+    if(parseInt(y) === year && parseInt(m) === month+1) {
+      const day = parseInt(d);
+      if(!result[day]) result[day] = { pnl: 0, count: 0, wins: 0, losses: 0 };
+      result[day].pnl += parseFloat(t.hasil) || 0;
+      result[day].count++;
+      if(t.wl === 'W') result[day].wins++;
+      if(t.wl === 'L') result[day].losses++;
+    }
+  });
+  return result;
+}
+
+function renderCalendarPage() {
+  const year = currentYear, month = currentMonth;
+  const firstDay = new Date(year, month, 1);
+  let startWeekday = firstDay.getDay();
+  startWeekday = startWeekday === 0 ? 6 : startWeekday - 1;
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  
+  document.getElementById('current-month').innerHTML = `${monthNames[month]} ${year}`;
+  document.getElementById('weekdays').innerHTML = dayNames.map(d => `<div class="weekday">${d}</div>`).join('');
+  
+  let daysHtml = '';
+  for(let i = 0; i < startWeekday; i++) daysHtml += '<div class="calendar-day empty"></div>';
+  
+  const dailyData = getDailyPnL(year, month);
+  const today = new Date();
+  const isCurrentMonth = (today.getFullYear() === year && today.getMonth() === month);
+  
+  let monthTrades = 0, monthPnl = 0, monthWins = 0, monthLosses = 0;
+  
+  for(let d = 1; d <= daysInMonth; d++) {
+    const data = dailyData[d];
+    const pnl = data ? data.pnl : 0;
+    const count = data ? data.count : 0;
+    monthTrades += count;
+    monthPnl += pnl;
+    if(data) { monthWins += data.wins; monthLosses += data.losses; }
+    const pnlClass = pnl > 0 ? 'positive' : (pnl < 0 ? 'negative' : 'neutral');
+    const pnlText = pnl !== 0 ? formatPnl(pnl) : '';
+    const todayClass = (isCurrentMonth && d === today.getDate()) ? 'today' : '';
+    
+    daysHtml += `<div class="calendar-day ${todayClass}">
+      <div class="day-number">${d}</div>
+      ${pnlText ? `<div class="day-pnl ${pnlClass}">${pnlText}</div>` : '<div class="day-pnl neutral" style="opacity:0.3">—</div>'}
+      ${count > 0 ? `<div class="day-trade-count">${count} trade${count>1?'s':''}</div>` : ''}
+    </div>`;
+  }
+  document.getElementById('calendar-days').innerHTML = daysHtml;
+  
+  const wr = monthTrades ? Math.round(monthWins/monthTrades*100) : 0;
+  document.getElementById('cal-total').innerHTML = monthTrades;
+  document.getElementById('cal-wr').innerHTML = `${wr}%`;
+  document.getElementById('cal-wl').innerHTML = `${monthWins}W / ${monthLosses}L`;
+  document.getElementById('cal-pnl').innerHTML = formatUSD(monthPnl);
+  document.getElementById('cal-pnl-sub').innerHTML = `${monthNames[month]} ${year}`;
+  
+  const globalPnl = trades.reduce((a,t)=>a+(parseFloat(t.hasil)||0),0);
+  document.getElementById('topbar-balance').innerHTML = formatUSD(balance + globalPnl);
+}
+
+function changeMonth(delta) {
+  let newMonth = currentMonth + delta;
+  let newYear = currentYear;
+  if(newMonth < 0) { newMonth = 11; newYear--; }
+  if(newMonth > 11) { newMonth = 0; newYear++; }
+  currentYear = newYear;
+  currentMonth = newMonth;
+  renderCalendarPage();
+}
+
+function goToToday() {
+  const today = new Date();
+  currentYear = today.getFullYear();
+  currentMonth = today.getMonth();
+  renderCalendarPage();
+}
+
+function renderStatsPage() {
+  const total = trades.length;
+  const wins = trades.filter(t=>t.wl==='W').length;
+  const losses = trades.filter(t=>t.wl==='L').length;
+  const bes = trades.filter(t=>t.wl==='BE').length;
+  const totalPnl = trades.reduce((a,t)=>a+(parseFloat(t.hasil)||0),0);
+  const wr = total ? Math.round(wins/total*100) : 0;
+  
+  document.getElementById('s-wr').innerHTML = `${wr}%`;
+  document.getElementById('s-wl-count').innerHTML = `${wins} win / ${losses} loss / ${bes} BE`;
+  document.getElementById('s-pnl').innerHTML = formatUSD(totalPnl);
+  document.getElementById('s-pnl-sub').innerHTML = `Dari ${total} trade`;
+  document.getElementById('donut-percent').innerHTML = `${wr}%`;
+  
+  const rrValues = trades.map(t => { let m = String(t.rr).match(/1:(\d+\.?\d*)/); return m ? parseFloat(m[1]) : null; }).filter(Boolean);
+  const avgRR = rrValues.length ? (rrValues.reduce((a,b)=>a+b)/rrValues.length).toFixed(1) : null;
+  document.getElementById('s-rr').innerHTML = avgRR ? `1:${avgRR}` : '—';
+  
+  const tbody = document.getElementById('tbody');
+  const empty = document.getElementById('empty-state');
+  if(!total) { tbody.innerHTML = ''; empty.style.display = 'block'; }
+  else {
+    empty.style.display = 'none';
+    tbody.innerHTML = trades.map(t => `
+      <tr>
+        <td>${t.date}</td>
+        <td>${t.pair}</td>
+        <td>${t.lot || '0.01'}</td>
+        <td><span class="badge ${t.orderType==='BUY'?'badge-buy':'badge-sell'}">${t.orderType}</span></td>
+        <td style="color:#22c55e">${t.entry || '—'}</td>
+        <td style="color:#22c55e">${t.tp || '—'}</td>
+        <td style="color:#ef4444">${t.sl || '—'}</td>
+        <td>${t.rr || '—'}</td>
+        <td class="${t.hasil>=0?'pos':'neg'}">${formatUSD(t.hasil)}</span></td>
+        <td>${t.wl==='W'?'<span class="win">WIN</span>':t.wl==='L'?'<span class="loss">LOSS</span>':'BE'}</td>
+        <td>${t.note || '-'}</td>
+        <td><button class="del-btn" onclick="deleteTrade(${t.id})"><i class="ti ti-trash"></i></button></td>
+      </tr>
+    `).join('');
+  }
+  
+  let cum = balance;
+  const eqData = [cum];
+  const labels = ['Start'];
+  trades.forEach((t,i) => { cum += parseFloat(t.hasil) || 0; eqData.push(cum); labels.push(i+1); });
+  if(equityChart) equityChart.destroy();
+  equityChart = new Chart(document.getElementById('equity-chart'), {
+    type:'line', data:{labels, datasets:[{data:eqData,borderColor:'#22c55e',borderWidth:2,pointRadius:2,fill:false}]},
+    options:{
+      responsive:true,
+      maintainAspectRatio:true,
+      plugins:{legend:{display:false}},
+      scales:{
+        y:{ticks:{color:'#6b6b7a'}, title:{display:false}},
+        x:{ticks:{color:'#6b6b7a'}}
+      }
+    }
+  });
+  
+  if(wlChart) wlChart.destroy();
+  wlChart = new Chart(document.getElementById('wl-chart'), {
+    type:'doughnut', data:{ labels:['Win','Loss','BE'], datasets:[{ data:[wins,losses,bes], backgroundColor:['#22c55e','#ef4444','#5a5a6a'], borderWidth:0, cutout:'70%' }] },
+    options:{ responsive:true, maintainAspectRatio:true, plugins:{ legend:{ display:false } } }
+  });
+  
+  const globalPnl = trades.reduce((a,t)=>a+(parseFloat(t.hasil)||0),0);
+  document.getElementById('topbar-balance').innerHTML = formatUSD(balance + globalPnl);
+}
+
+function renderAll() {
+  if(document.getElementById('page-calendar').style.display !== 'none') renderCalendarPage();
+  else renderStatsPage();
+}
+
+loadData();
+document.getElementById('f-date').value = getToday();
+renderAll();
+</script>
+</body>
+</html>
